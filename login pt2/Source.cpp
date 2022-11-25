@@ -7,6 +7,8 @@
 #include <fstream>
 #include <ctime>
 #include <assert.h>
+#include <unordered_map>
+
 void ReadandWrite();
 void Writer();
 void Reader();
@@ -40,8 +42,26 @@ public:
 	int UserID;
 	int Money = 1000;
 	int Loan;
-	char Key[25];
+private:
+	int caps[100];
+	int capsSize = 0;
+	std::unordered_map<char, char> key;
 	bool KeyMade = false;
+public:
+	void makeUser(std::string UserNames,std::string Passwords,int UserIDs,int Moneys, int Loans)
+	{
+		UserName = Encrypt(UserNames);
+		Password = Encrypt(Passwords);
+		UserID = UserIDs;
+		Money = Moneys;
+		Loan = Loans;
+	}
+	void makeUser(std::string UserNames, std::string Passwords, int UserIDs)
+	{
+		UserName = Encrypt(UserNames);
+		Password = Encrypt(Passwords);
+		UserID = UserIDs;
+	}
 	void DeleteUser()
 	{
 		std::string Gone;
@@ -68,11 +88,41 @@ public:
 	}
 	std::string Encrypt(std::string UserData) 
 	{
+		for (int i = 0; i < UserData.size(); i++)
+		{
+			if (int(UserData[i]) < 98)
+			{
+				UserData[i] = tolower(UserData[i]);
+				caps[capsSize] = i;
+				capsSize++;
+			}
+		}
+		capsSize--;
 		if (!KeyMade)
 		{
+			srand(time(NULL));
+			int charOn = 0;
+			int lettersUsed[26];
 			for (int i = 0; i < 26; i++)
 			{
-				Key[i] = rand() % 26 + 97;
+				int ran = rand() % 26 + 97;
+				bool same = false;
+				do
+				{
+					for (int i = 0; i < charOn; i++)
+					{
+						if (ran == lettersUsed[i])
+						{
+							ran = rand() % 26 + 97;
+							same = true;
+							break;
+						}
+						same = false;
+					}
+				} while (same);
+				lettersUsed[charOn] = ran;
+				charOn++;
+				key[i+ 97] = ran;
 				
 
 			}
@@ -81,32 +131,32 @@ public:
 		for (int i = 0; i < UserData.size(); i++)
 		{
 			
-			UserData[i] = Key[UserData[i] - 97];
+			UserData[i] = key[UserData[i]];
 		}
 		
 		return UserData;
 	}
 	std::string Decrypt(std::string UserData)
 	{
-		for (int i = 0; i < UserData.size(); i++)
+		std::unordered_map<char, char> revkey;
+		for (int i = 0; i < 26; i++)
 		{
-			
-			for (int j = 0; j < 26; j++)
-			{
-				
-				if (UserData[i] = Key[j])
-				{
-					
-					UserData[i] = j + 97;
-				}
-			}
+			revkey[key[i+97]] = i + 97;
 		}
+			
+			for (int i = 0; i < UserData.size(); i++)
+			{
+
+				UserData[i] = revkey[UserData[i]];
+			}
 		
 		
-		system("pause");
+		for (int i = 0; i < capsSize; i++)
+		{
+			UserData[caps[i]] = toupper(UserData[i]);
+		}
 		return UserData;
 	}
-
 	
 };
 // makes the users
@@ -114,25 +164,23 @@ User Users[99999] = {};
 // the logged in username
 std::string LogedinUserName;
 // the logged in password
-std::string LogedinPassword;
+//std::string LogedinPassword;
 // the login in user id 
 int LogedinUserID;
 static int ID = 0;
+std::unordered_map<std::string, char> loginKey;
 
 int main()
 {
 	// seeds the randomness to the time
 	srand(time(NULL));
-	bool ReadInfoStartUp;
+	bool ReadInfoStartUp = false;
 
-	std::ifstream StartUp("StartUp.txt");
-	StartUp >> ReadInfoStartUp;
-	char a = 97;
-	std::cout << a << std::endl;
-	Users[0] = { "test", "test", ID };
+	//std::ifstream StartUp("StartUp.txt");
+	//StartUp >> ReadInfoStartUp;
+	Users[0].makeUser("test", "test", ID);
 	ID++;
-	
-	
+	loginKey["test"] = 0;
 	std::ofstream StartUpOut("StartUp.txt");
 	if (ReadInfoStartUp)
 	{
@@ -144,8 +192,8 @@ int main()
 	Account();
 	
 
-	StartUpOut.close();
-	StartUp.close();
+	//StartUpOut.close();
+	//StartUp.close();
 
 
 	Account();
@@ -271,7 +319,7 @@ void Reader()
 				userpass = false;
 				idandpass = 0;
 				ID++;
-				Users[BackUpID + 1] = { BackUpUserName, BackUpPassword, BackUpID + 1, BackUpMoney, BackUpLoan };
+				Users[BackUpID + 1].makeUser(BackUpUserName, BackUpPassword, BackUpID + 1, BackUpMoney, BackUpLoan);
 				break;
 			default:
 				userpass = false;
@@ -364,7 +412,7 @@ void ReaderStartUp()
 				UserDataFile >> BackUpLoan;
 				idandpass = 0;
 				userpass = false;
-				Users[BackUpID + 1] = { BackUpUserName, BackUpPassword, BackUpID + 1, BackUpMoney, BackUpLoan };
+				Users[BackUpID + 1].makeUser(BackUpUserName, BackUpPassword, BackUpID + 1, BackUpMoney, BackUpLoan);
 				ID++;
 
 
@@ -470,17 +518,14 @@ void UserCreator(int& Id)
 	std::string* PassWord = new std::string;
 	std::cout << "enter a Username: ";
 	std::cin >> *UserName;
-	for (int i = 0; i < Id; i++)
-	{
-		if (*UserName == Users[i].UserName)
+		if (loginKey.find(*UserName) != loginKey.end())
 		{
 			std::cout << "the username are already in use" << std::endl;
-			UserCreator(Id);
+			system("pause");
+			system("CLS");
+			Account();
 			return;
 		}
-
-
-	}
 	std::cout << "enter a password: ";
 	std::cin >> *PassWord;
 	// checks if the UserName is in use
@@ -496,9 +541,10 @@ void UserCreator(int& Id)
 			if (ReservedIDCount > 0)
 			{
 				// creates account with user reserver id 
-				Users[ReservedID[ReservedIDUse]] = { *UserName, *PassWord, ReservedID[ReservedIDUse] };
+				Users[ReservedID[ReservedIDUse]].makeUser(*UserName, *PassWord, ReservedID[ReservedIDUse]);
 				ReservedIDUse++;
 				ReservedIDCount--;
+				loginKey[*UserName] = Id;
 				system("pause");
 				system("CLS");
 				Account();
@@ -507,17 +553,18 @@ void UserCreator(int& Id)
 		}
 	
 	// creates an account with id
-	Users[Id] = {*UserName, *PassWord, Id };
+	Users[Id].makeUser(*UserName, *PassWord, Id);
 	system("pause");
 	system("CLS");
-	
-	std::cout << Id << std::endl;
-	if (*UserName == Users[Id].UserName) { Id++; }
-	std::cout << Id << std::endl;
+	loginKey[*UserName] = Id;
+	if (Users[Id].Encrypt(*UserName) == Users[Id].UserName) { Id++; }
+	delete UserName;
+	delete PassWord;
 	Account();
 }
 std::string PasswordGenerator()
 {
+	srand(time(NULL));
 	std::string* RandPassWord = new std::string;
 	int* NumCap = new int;
 	int* CharCap = new int;
@@ -525,63 +572,54 @@ std::string PasswordGenerator()
 	int* CharsUsed = new int;
 	int* PassLen = new int;
 	int* RandChar = new int;
+	char* CharInUse = new char;
+	int* IntInUse = new int;
 	*CharCap = 5;
-	*NumCap = 5;
+	*NumCap = 2;
 	*CharsUsed = 0;
 	*IntsUsed = 0;
 	*PassLen = *CharCap + *NumCap;
 	for (int i = 0; i < *PassLen; i++)
 	{
-		*RandChar = rand() % 3 + 1;
+		*RandChar = rand() % 2 + 1;
+		if (*IntsUsed >= *NumCap)
+		{
+			*RandChar = 2;
+		}
+		if (*CharsUsed >= *CharCap)
+		{
+			*RandChar = 1;
+		}
+			
+
 		switch (*RandChar)
 		{
 		case 1:
-			if (*IntsUsed < *NumCap)
-			{
-				int* IntInUse = new int;
 				*IntInUse = rand() % 10;
 				*RandPassWord += std::to_string(*IntInUse);;
-				delete IntInUse;
 				++*IntsUsed;
 				break;
-			}
-			
 		case 2:
-			if (*CharsUsed < *CharCap)
-			{
-				char* CharInUse = new char;
-				int* IntInUse = new int;
 				*IntInUse = rand() % 26;
-				*CharInUse = 'a' + *IntInUse;
+				*CharInUse = char(*IntInUse+97);
 				*RandPassWord += *CharInUse;
-				delete IntInUse;
-				delete CharInUse;
+
 				*CharsUsed++;
 				break;
-			}
-		default:
-			if (*IntsUsed < *NumCap)
-			{
-				int* IntInUse = new int;
+		case 3:
 				*IntInUse = rand() % 10;
 				*RandPassWord += std::to_string(*IntInUse);;
-				delete IntInUse;
 				*IntsUsed++;
-			}
 			break;
 		}
 	}
 
-	delete RandChar;
-	delete PassLen;
-	delete CharsUsed;
-	delete IntsUsed;
-	delete CharCap;
-	delete NumCap;
+
 	std::cout << "your password is: " << *RandPassWord << std::endl;
 	return *RandPassWord;
-
 	delete RandPassWord;
+	
+
 	
 	
 }
@@ -660,33 +698,32 @@ char SymbolsUse(int NumForSym)
 void SignIn(int Id)
 {
 	// asks for their username and password
+	system("CLS");
 	std::string UserName;
 	std::string PassWord;
 	std::cout << "enter your Username: ";
 	std::cin >> UserName;
+	int loginId;
 	std::cout << "enter your password: ";
 	std::cin >> PassWord;
 	// checks if the username and password is correct
-	for (int i = 0; i < Id; i++)
+	if (loginKey.find(UserName) != loginKey.end())
 	{
-		// checks if the username is correct
-		if (UserName == Users[i].UserName)
-		{
+		loginId = loginKey[UserName];
 			// checks if the password is correct
-			if (PassWord == Users[i].Password)
+			if (PassWord == Users[loginId].Decrypt(Users[loginId].Password))
 			{
 				LogedinUserName = UserName;
-				LogedinPassword = PassWord;
-				LogedinUserID = i;
+				LogedinUserID = loginId;
 				system("CLS");
 				Login();
 				return;
 			}
 		}
-	}
 	// incorrect password or username
 	std::cout << "incorrect password or username " << std::endl;
 	//std::cout << std::endl;
+	system("CLS");
 	Account();
 	return;
 }
@@ -963,45 +1000,38 @@ void PlayBlackJack(int BlackJackBet, int Card1, int Card2, int DealerFaceCard, i
 
 	}
 	if (DealerSum == PlayerSum) { DealerSum += 1; }
-	std::cout << "The dealers sum is: " << DealerSum << std::endl;
+	std::cout << "The dealers sum is: " << DealerSum<< std::endl;
 	std::cout << "Your sum is: " << PlayerSum << std::endl;
 
 	if (PlayerSum > 21)
 	{
 		std::cout << "you lost you went over 21 " << std::endl;
 		Users[LogedinUserID].Money -= BlackJackBet;
-		Login();
-		return;
 	}
 	if (DealerSum > 21)
 	{
 		std::cout << "you won the dealer went over 21 " << std::endl;
 		Users[LogedinUserID].Money += BlackJackBet;
-		Login();
-		return;
 	}
 	if (PlayerSum > DealerSum)
 	{
 		std::cout << "You have won " << std::endl;
 		Users[LogedinUserID].Money += BlackJackBet;
-		Login();
-		return;
 	}
 	if (PlayerSum < DealerSum)
 	{
 		std::cout << "You have lost " << std::endl;
 		Users[LogedinUserID].Money -= BlackJackBet;
-		Login();
-		return;
 	}
 	else
 	{
 		std::cout << "You have lost " << std::endl;
 		Users[LogedinUserID].Money -= BlackJackBet;
-
-		Login();
-		return;
 	}
+	system("pause");
+	system("CLS");
+	Login();
+	return;
 
 }
 bool HitOrStay(int& PlayerSum)
